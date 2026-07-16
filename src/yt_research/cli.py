@@ -1,0 +1,372 @@
+"""Command-line interface for public YouTube channel research."""
+
+# Typer declares CLI metadata through function-call defaults by design.
+# ruff: noqa: B008
+
+from __future__ import annotations
+
+import sys
+from collections.abc import Callable
+from datetime import UTC, date, datetime
+from pathlib import Path
+from typing import Any
+
+import typer
+from pydantic import ValidationError
+
+from .cache import ChannelCache
+from .credentials import (
+    CredentialError,
+    credential_source,
+    delete_api_key,
+    get_api_key,
+    store_api_key,
+)
+from .errors import InvalidInputError, YTResearchError
+from .models import ReportMeta, SortOrder, VideoQuery
+from .rendering import OutputFormat, as_data, render, write_rendered
+from .research import Research
+from .youtube import YouTubeClient
+
+app = typer.Typer(
+    name="yt-research",
+    help="Research public YouTube channels and upload histories.",
+    no_args_is_help=True,
+    pretty_exceptions_show_locals=False,
+)
+auth_app = typer.Typer(help="Manage the YouTube Data API key.", no_args_is_help=True)
+channel_app = typer.Typer(help="Inspect and discover public channels.", no_args_is_help=True)
+videos_app = typer.Typer(help="Research videos published by a channel.", no_args_is_help=True)
+app.add_typer(auth_app, name="auth")
+app.add_typer(channel_app, name="channel")
+app.add_typer(videos_app, name="videos")
+
+
+def _fail(message: str, exit_code: int) -> None:
+    typer.echo(f"Error: {message}", err=True)
+    raise typer.Exit(exit_code)
+
+
+def _run(operation: Callable[[], Any]) -> Any:
+    try:
+        return operation()
+    except CredentialError as exc:
+        _fail(str(exc), 3)
+    except ValidationError as exc:
+        message = "; ".join(error["msg"] for error in exc.errors())
+        _fail(message, 2)
+    except YTResearchError as exc:
+        _fail(str(exc), exc.exit_code)
+    except OSError as exc:
+        _fail(str(exc), 5)
+
+
+def _research() -> Research:
+    return Research(YouTubeClient(get_api_key()), ChannelCache())
+
+
+def _with_research(operation: Callable[[Research], Any]) -> Any:
+    research = _research()
+    try:
+        return operation(research)
+    finally:
+        close = getattr(research.api, "close", None)
+        if callable(close):
+            close()
+
+
+def _selected_format(value: OutputFormat | None, output: Path | None = None) -> OutputFormat:
+    if value is not None:
+        return value
+    if output is not None:
+        return OutputFormat.json
+    return OutputFormat.table if sys.stdout.isatty() else OutputFormat.json
+
+
+def _emit(
+    value: Any,
+    *,
+    output_format: OutputFormat | None,
+    output: Path | None,
+    no_color: bool,
+) -> None:
+    selected = _selected_format(output_format, output)
+    try:
+        write_rendered(render(value, selected, no_color=no_color), output)
+    except OSError as exc:
+        _fail(f"Could not write output: {exc}", 5)
+    data = as_data(value)
+    if isinstance(data, dict):
+        meta = data.get("meta")
+        if isinstance(meta, dict):
+            for warning in meta.get("warnings", []):
+                typer.echo(f"Warning: {warning}", err=True)
+
+
+@auth_app.command("set")
+def auth_set() -> None:
+    """Save an API key in the operating system secret store."""
+
+    api_key = typer.prompt("YouTube Data API key", hide_input=True, confirmation_prompt=True)
+    _run(lambda: store_api_key(api_key))
+    typer.echo("API key stored in the system secret store.")
+
+
+@auth_app.command("status")
+def auth_status() -> None:
+    """Show whether a key is configured without revealing it."""
+
+    source = _run(credential_source)
+    if source == "environment":
+        typer.echo("API key configured through YT_RESEARCH_API_KEY.")
+    elif source == "keyring":
+        typer.echo("API key configured in the system secret store.")
+    else:
+        typer.echo("No API key configured.")
+
+
+@auth_app.command("delete")
+def auth_delete() -> None:
+    """Delete the API key from the operating system secret store."""
+
+    deleted = _run(delete_api_key)
+    typer.echo("Stored API key deleted." if deleted else "No stored API key found.")
+
+
+@channel_app.command("info")
+def channel_info(
+    channel_ref: str = typer.Argument(..., help="Channel ID, @handle, or channel URL."),
+    output_format: OutputFormat | None = typer.Option(None, "--format", help="Output format."),
+    output: Path | None = typer.Option(
+        None, "--output", dir_okay=False, help="Write output to this file."
+    ),
+    refresh: bool = typer.Option(False, "--refresh", help="Bypass cached channel identity."),
+    no_color: bool = typer.Option(False, "--no-color", help="Disable terminal color."),
+) -> None:
+    """Show metadata for one public channel."""
+
+    report = _run(
+        lambda: _with_research(lambda research: research.channel(channel_ref, refresh=refresh))
+    )
+    _emit(report, output_format=output_format, output=output, no_color=no_color)
+
+
+@channel_app.command("search")
+def channel_search(
+    query: str = typer.Argument(..., help="Channel name to search for."),
+    limit: int = typer.Option(10, "--limit", min=1, max=50, help="Maximum candidates."),
+    output_format: OutputFormat | None = typer.Option(None, "--format", help="Output format."),
+    output: Path | None = typer.Option(
+        None, "--output", dir_okay=False, help="Write output to this file."
+    ),
+    no_color: bool = typer.Option(False, "--no-color", help="Disable terminal color."),
+) -> None:
+    """Return candidates for an ambiguous channel name."""
+
+    def search() -> Any:
+        def perform(research: Research) -> dict[str, Any]:
+            items = research.search_channels(query, limit=limit)
+            requests = getattr(research.api, "request_counts", {})
+            return {
+                "schema_version": 1,
+                "command": "channel.search",
+                "fetched_at": datetime.now(UTC).isoformat(),
+                "channel": None,
+                "query": {"text": query, "limit": limit},
+                "items": items,
+                "meta": ReportMeta(
+                    matched=len(items),
+                    returned=len(items),
+                    requests=dict(requests),
+                ),
+            }
+
+        return _with_research(perform)
+
+    report = _run(search)
+    _emit(report, output_format=output_format, output=output, no_color=no_color)
+
+
+def _video_report(
+    command: str,
+    channel_ref: str,
+    *,
+    match_text: str | None,
+    year: int | None,
+    date_from: str | None,
+    date_to: str | None,
+    sort: SortOrder,
+    limit: int | None,
+    output_format: OutputFormat | None,
+    output: Path | None,
+    refresh: bool,
+    no_color: bool,
+) -> None:
+    def research_videos() -> Any:
+        try:
+            parsed_from = date.fromisoformat(date_from) if date_from else None
+            parsed_to = date.fromisoformat(date_to) if date_to else None
+        except ValueError as exc:
+            raise InvalidInputError("dates must use YYYY-MM-DD format") from exc
+        query = VideoQuery.model_validate(
+            {
+                "match_text": match_text,
+                "year": year,
+                "date_from": parsed_from,
+                "date_to": parsed_to,
+                "sort": sort,
+                "limit": limit,
+            }
+        )
+        return _with_research(
+            lambda research: research.videos(channel_ref, query, command=command, refresh=refresh)
+        )
+
+    report = _run(research_videos)
+    _emit(report, output_format=output_format, output=output, no_color=no_color)
+
+
+def _validate_limit(limit: int | None) -> int | None:
+    if limit is not None and limit < 1:
+        _fail("--limit must be at least 1.", 2)
+    return limit
+
+
+@videos_app.command("list")
+def videos_list(
+    channel_ref: str = typer.Argument(..., help="Channel ID, @handle, or channel URL."),
+    match_text: str | None = typer.Option(
+        None, "--match", help="Case-insensitive title substring."
+    ),
+    year: int | None = typer.Option(None, "--year", min=1970, max=9999),
+    date_from: str | None = typer.Option(None, "--from", metavar="YYYY-MM-DD"),
+    date_to: str | None = typer.Option(None, "--to", metavar="YYYY-MM-DD"),
+    sort: SortOrder = typer.Option(SortOrder.PUBLISHED_DESC, "--sort"),
+    limit: int | None = typer.Option(None, "--limit", min=1),
+    output_format: OutputFormat | None = typer.Option(None, "--format"),
+    output: Path | None = typer.Option(None, "--output", dir_okay=False),
+    refresh: bool = typer.Option(False, "--refresh"),
+    no_color: bool = typer.Option(False, "--no-color"),
+) -> None:
+    """List all videos matching the supplied filters."""
+
+    _video_report(
+        "videos.list",
+        channel_ref,
+        match_text=match_text,
+        year=year,
+        date_from=date_from,
+        date_to=date_to,
+        sort=sort,
+        limit=_validate_limit(limit),
+        output_format=output_format,
+        output=output,
+        refresh=refresh,
+        no_color=no_color,
+    )
+
+
+@videos_app.command("latest")
+def videos_latest(
+    channel_ref: str = typer.Argument(..., help="Channel ID, @handle, or channel URL."),
+    match_text: str | None = typer.Option(
+        None, "--match", help="Case-insensitive title substring."
+    ),
+    year: int | None = typer.Option(None, "--year", min=1970, max=9999),
+    date_from: str | None = typer.Option(None, "--from", metavar="YYYY-MM-DD"),
+    date_to: str | None = typer.Option(None, "--to", metavar="YYYY-MM-DD"),
+    sort: SortOrder = typer.Option(SortOrder.PUBLISHED_DESC, "--sort"),
+    limit: int = typer.Option(20, "--limit", min=1),
+    output_format: OutputFormat | None = typer.Option(None, "--format"),
+    output: Path | None = typer.Option(None, "--output", dir_okay=False),
+    refresh: bool = typer.Option(False, "--refresh"),
+    no_color: bool = typer.Option(False, "--no-color"),
+) -> None:
+    """Show the newest matching videos."""
+
+    _video_report(
+        "videos.latest",
+        channel_ref,
+        match_text=match_text,
+        year=year,
+        date_from=date_from,
+        date_to=date_to,
+        sort=sort,
+        limit=limit,
+        output_format=output_format,
+        output=output,
+        refresh=refresh,
+        no_color=no_color,
+    )
+
+
+@videos_app.command("top")
+def videos_top(
+    channel_ref: str = typer.Argument(..., help="Channel ID, @handle, or channel URL."),
+    match_text: str | None = typer.Option(
+        None, "--match", help="Case-insensitive title substring."
+    ),
+    year: int | None = typer.Option(None, "--year", min=1970, max=9999),
+    date_from: str | None = typer.Option(None, "--from", metavar="YYYY-MM-DD"),
+    date_to: str | None = typer.Option(None, "--to", metavar="YYYY-MM-DD"),
+    sort: SortOrder = typer.Option(SortOrder.VIEWS, "--sort"),
+    limit: int = typer.Option(10, "--limit", min=1),
+    output_format: OutputFormat | None = typer.Option(None, "--format"),
+    output: Path | None = typer.Option(None, "--output", dir_okay=False),
+    refresh: bool = typer.Option(False, "--refresh"),
+    no_color: bool = typer.Option(False, "--no-color"),
+) -> None:
+    """Show matching videos with the highest current view counts."""
+
+    _video_report(
+        "videos.top",
+        channel_ref,
+        match_text=match_text,
+        year=year,
+        date_from=date_from,
+        date_to=date_to,
+        sort=sort,
+        limit=limit,
+        output_format=output_format,
+        output=output,
+        refresh=refresh,
+        no_color=no_color,
+    )
+
+
+@videos_app.command("first")
+def videos_first(
+    channel_ref: str = typer.Argument(..., help="Channel ID, @handle, or channel URL."),
+    match_text: str | None = typer.Option(
+        None, "--match", help="Case-insensitive title substring."
+    ),
+    year: int | None = typer.Option(None, "--year", min=1970, max=9999),
+    date_from: str | None = typer.Option(None, "--from", metavar="YYYY-MM-DD"),
+    date_to: str | None = typer.Option(None, "--to", metavar="YYYY-MM-DD"),
+    sort: SortOrder = typer.Option(SortOrder.PUBLISHED_ASC, "--sort"),
+    limit: int = typer.Option(1, "--limit", min=1),
+    output_format: OutputFormat | None = typer.Option(None, "--format"),
+    output: Path | None = typer.Option(None, "--output", dir_okay=False),
+    refresh: bool = typer.Option(False, "--refresh"),
+    no_color: bool = typer.Option(False, "--no-color"),
+) -> None:
+    """Show the oldest matching video."""
+
+    _video_report(
+        "videos.first",
+        channel_ref,
+        match_text=match_text,
+        year=year,
+        date_from=date_from,
+        date_to=date_to,
+        sort=sort,
+        limit=limit,
+        output_format=output_format,
+        output=output,
+        refresh=refresh,
+        no_color=no_color,
+    )
+
+
+if __name__ == "__main__":
+    app()
