@@ -8,6 +8,7 @@ import pytest
 from typer.testing import CliRunner
 
 import yt_research.cli as cli
+from yt_research import __version__
 from yt_research.errors import NotFoundError
 from yt_research.models import (
     Channel,
@@ -88,6 +89,13 @@ def test_root_help_lists_public_command_groups() -> None:
     assert "auth" in result.stdout
     assert "channel" in result.stdout
     assert "videos" in result.stdout
+
+
+def test_root_version_reports_package_version() -> None:
+    result = runner.invoke(cli.app, ["--version"])
+
+    assert result.exit_code == 0
+    assert result.stdout == f"yt-research {__version__}\n"
 
 
 def test_channel_info_json_and_refresh(fake_research: FakeResearch) -> None:

@@ -4,10 +4,11 @@ All notable changes to this project are documented here. The format is based on 
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-07-17
+## [0.1.0] - 2026-07-31
 
 ### Added
 
+- Added `yt-research --version` for checking the installed release.
 - Initial public CLI for researching public YouTube channels and upload histories.
 - Human-readable tables and stable JSON and CSV output.
 - Native secret-store support and an environment variable for headless use.
@@ -15,4 +16,3 @@ All notable changes to this project are documented here. The format is based on 
 
 [Unreleased]: https://github.com/vp275/yt-research/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/vp275/yt-research/releases/tag/v0.1.0
-
