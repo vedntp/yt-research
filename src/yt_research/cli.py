@@ -14,6 +14,7 @@ from typing import Any
 import typer
 from pydantic import ValidationError
 
+from . import __version__
 from .cache import ChannelCache
 from .credentials import (
     CredentialError,
@@ -40,6 +41,25 @@ videos_app = typer.Typer(help="Research videos published by a channel.", no_args
 app.add_typer(auth_app, name="auth")
 app.add_typer(channel_app, name="channel")
 app.add_typer(videos_app, name="videos")
+
+
+def _version_callback(value: bool) -> None:
+    if value:
+        typer.echo(f"yt-research {__version__}")
+        raise typer.Exit()
+
+
+@app.callback()
+def main(
+    version: bool = typer.Option(
+        False,
+        "--version",
+        callback=_version_callback,
+        is_eager=True,
+        help="Show the version and exit.",
+    ),
+) -> None:
+    """Research public YouTube channels and upload histories."""
 
 
 def _fail(message: str, exit_code: int) -> None:
