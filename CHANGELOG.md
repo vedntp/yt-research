@@ -14,5 +14,5 @@ All notable changes to this project are documented here. The format is based on 
 - Native secret-store support and an environment variable for headless use.
 - Synthetic test suite and macOS and Linux continuous integration.
 
-[Unreleased]: https://github.com/vp275/yt-research/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/vp275/yt-research/releases/tag/v0.1.0
+[Unreleased]: https://github.com/vedntp/yt-research/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/vedntp/yt-research/releases/tag/v0.1.0

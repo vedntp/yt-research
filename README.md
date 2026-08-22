@@ -39,7 +39,7 @@ uvx yt-research --help
 For a development checkout:
 
 ```console
-git clone https://github.com/vp275/yt-research.git
+git clone https://github.com/vedntp/yt-research.git
 cd yt-research
 uv sync
 uv run yt-research --help

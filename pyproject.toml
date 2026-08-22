@@ -9,7 +9,7 @@ description = "Research public YouTube channels from the command line"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
-authors = [{ name = "vp275" }]
+authors = [{ name = "vedant" }]
 keywords = ["youtube", "research", "cli", "data-api"]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -34,10 +34,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/vp275/yt-research"
-Documentation = "https://github.com/vp275/yt-research/tree/main/docs"
-Issues = "https://github.com/vp275/yt-research/issues"
-Source = "https://github.com/vp275/yt-research"
+Homepage = "https://github.com/vedntp/yt-research"
+Documentation = "https://github.com/vedntp/yt-research/tree/main/docs"
+Issues = "https://github.com/vedntp/yt-research/issues"
+Source = "https://github.com/vedntp/yt-research"
 
 [project.scripts]
 yt-research = "yt_research.cli:app"
