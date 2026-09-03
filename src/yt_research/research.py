@@ -222,9 +222,7 @@ class Research:
             warnings=warnings,
         )
 
-    def _scan_uploads(
-        self, playlist_id: str, query: VideoQuery | AnalysisQuery
-    ) -> _UploadScan:
+    def _scan_uploads(self, playlist_id: str, query: VideoQuery | AnalysisQuery) -> _UploadScan:
         """Select the uploads that can still reach the result set.
 
         Playlist metadata already answers the title and date filters, so only
@@ -366,9 +364,7 @@ class Research:
             current = cls._next_month(current)
 
     @classmethod
-    def _analysis_span(
-        cls, matches: list[Video], query: AnalysisQuery
-    ) -> tuple[date, date] | None:
+    def _analysis_span(cls, matches: list[Video], query: AnalysisQuery) -> tuple[date, date] | None:
         if not matches:
             return None
         dates = cls._utc_dates(matches)
@@ -401,18 +397,14 @@ class Research:
         return max(1.0, (end - start).days / 30.4375)
 
     @classmethod
-    def _analysis_summary(
-        cls, matches: list[Video], query: AnalysisQuery
-    ) -> AnalysisSummary:
+    def _analysis_summary(cls, matches: list[Video], query: AnalysisQuery) -> AnalysisSummary:
         dates = cls._utc_dates(matches)
         span = cls._analysis_span(matches, query)
         if span is None and query.date_from is not None and query.date_to is not None:
             # A bounded empty report still has a known cadence denominator;
             # unlike cohorts, its summary can report zero uploads per month.
             span = query.date_from, query.date_to
-        ordered_published = sorted(
-            video.published_at.astimezone(UTC) for video in matches
-        )
+        ordered_published = sorted(video.published_at.astimezone(UTC) for video in matches)
         gaps = [
             (later - earlier).total_seconds() / 86400
             for earlier, later in pairwise(ordered_published)
@@ -425,35 +417,23 @@ class Research:
             published_from=min(dates) if dates else None,
             published_to=max(dates) if dates else None,
             total_views=cls._total_views(matches),
-            median_views=cls._median(
-                [video.views for video in matches if video.views is not None]
-            ),
-            median_likes=cls._median(
-                [video.likes for video in matches if video.likes is not None]
-            ),
+            median_views=cls._median([video.views for video in matches if video.views is not None]),
+            median_likes=cls._median([video.likes for video in matches if video.likes is not None]),
             median_comments=cls._median(
                 [video.comments for video in matches if video.comments is not None]
             ),
             median_duration_seconds=cls._median(
-                [
-                    video.duration_seconds
-                    for video in matches
-                    if video.duration_seconds is not None
-                ]
+                [video.duration_seconds for video in matches if video.duration_seconds is not None]
             ),
             like_rate=cls._rate(matches, "likes"),
             comment_rate=cls._rate(matches, "comments"),
             uploads_per_month=uploads_per_month,
-            median_days_between_uploads=(
-                float(median(gaps)) if gaps else None
-            ),
+            median_days_between_uploads=(float(median(gaps)) if gaps else None),
             coverage=cls._coverage(matches),
         )
 
     @classmethod
-    def _monthly_cohorts(
-        cls, matches: list[Video], query: AnalysisQuery
-    ) -> list[MonthlyCohort]:
+    def _monthly_cohorts(cls, matches: list[Video], query: AnalysisQuery) -> list[MonthlyCohort]:
         span = cls._analysis_span(matches, query)
         if span is None and query.date_from is not None and query.date_to is not None:
             span = query.date_from, query.date_to
@@ -470,9 +450,7 @@ class Research:
             # reports only expose observed publication months.
             month_starts = list(cls._month_span(*span))
         else:
-            month_starts = [
-                date.fromisoformat(f"{month}-01") for month in sorted(grouped)
-            ]
+            month_starts = [date.fromisoformat(f"{month}-01") for month in sorted(grouped)]
 
         cohorts: list[MonthlyCohort] = []
         for month_start in month_starts:
@@ -505,9 +483,7 @@ class Research:
         for video in matches:
             if video.views is None:
                 continue
-            by_year.setdefault(video.published_at.astimezone(UTC).year, []).append(
-                video.views
-            )
+            by_year.setdefault(video.published_at.astimezone(UTC).year, []).append(video.views)
 
         year_stats: dict[int, tuple[float, int]] = {}
         for year, views in by_year.items():

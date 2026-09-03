@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format is based on 
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-03
+
 ### Changed
 
 - Video commands now filter uploads using playlist metadata and stop traversing once older uploads cannot enter the result set, so date-bounded and newest-first queries cost a fraction of the previous API quota.
@@ -29,6 +31,7 @@ All notable changes to this project are documented here. The format is based on 
 - Native secret-store support and an environment variable for headless use.
 - Synthetic test suite and macOS and Linux continuous integration.
 
-[Unreleased]: https://github.com/vedntp/yt-research/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/vedntp/yt-research/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/vedntp/yt-research/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/vedntp/yt-research/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/vedntp/yt-research/releases/tag/v0.1.0
