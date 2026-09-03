@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Dependencies are restored from the project snapshot by .agents/setup.
+printf 'Orb development environment is ready.\n'

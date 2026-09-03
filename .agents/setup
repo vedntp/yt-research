@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly uv_version="0.11.29"
+readonly uv_install_dir="$HOME/.local/bin"
+readonly uv_bin="$uv_install_dir/uv"
+
+run_step() {
+  local name="$1"
+  shift
+  local start end
+  start=$(date +%s)
+  printf '==> %s\n' "$name"
+  "$@"
+  end=$(date +%s)
+  printf '<== %s (%ss)\n' "$name" "$((end - start))"
+}
+
+install_uv() {
+  local archive arch download_dir
+  case "$(uname -m)" in
+    x86_64 | amd64) arch="x86_64" ;;
+    aarch64 | arm64) arch="aarch64" ;;
+    *)
+      printf 'Unsupported architecture for uv: %s\n' "$(uname -m)" >&2
+      return 1
+      ;;
+  esac
+
+  archive=$(mktemp)
+  download_dir=$(mktemp -d)
+  curl --fail --location --silent --show-error \
+    "https://github.com/astral-sh/uv/releases/download/${uv_version}/uv-${arch}-unknown-linux-gnu.tar.gz" \
+    --output "$archive"
+  tar --extract --gzip --file "$archive" --directory "$download_dir"
+  install --mode=755 "$download_dir/uv-${arch}-unknown-linux-gnu/uv" "$uv_bin"
+  rm -f "$archive"
+  rm -rf "$download_dir"
+}
+
+mkdir -p "$uv_install_dir"
+if ! command -v curl >/dev/null 2>&1; then
+  run_step "Installing curl" sudo apt-get update
+  run_step "Installing curl" sudo apt-get install --yes curl ca-certificates
+fi
+
+if [[ ! -x "$uv_bin" ]] || [[ "$($uv_bin --version)" != "uv $uv_version"* ]]; then
+  run_step "Installing uv $uv_version" install_uv
+else
+  printf '==> uv %s already installed\n' "$uv_version"
+fi
+
+export PATH="$uv_install_dir:$PATH"
+run_step "Syncing locked development dependencies" "$uv_bin" sync --locked --all-groups
