@@ -5,9 +5,11 @@
 
 from __future__ import annotations
 
+import calendar
 import sys
 from collections.abc import Callable
 from datetime import UTC, date, datetime
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +26,7 @@ from .credentials import (
     store_api_key,
 )
 from .errors import InvalidInputError, YTResearchError
-from .models import ReportMeta, SortOrder, VideoQuery
+from .models import AnalysisQuery, ReportMeta, SortOrder, VideoQuery
 from .rendering import OutputFormat, as_data, render, write_rendered
 from .research import Research
 from .youtube import YouTubeClient
@@ -41,6 +43,11 @@ videos_app = typer.Typer(help="Research videos published by a channel.", no_args
 app.add_typer(auth_app, name="auth")
 app.add_typer(channel_app, name="channel")
 app.add_typer(videos_app, name="videos")
+
+
+class _AnalysisOutputFormat(StrEnum):
+    table = "table"
+    json = "json"
 
 
 def _version_callback(value: bool) -> None:
@@ -250,6 +257,121 @@ def _validate_limit(limit: int | None) -> int | None:
     if limit is not None and limit < 1:
         _fail("--limit must be at least 1.", 2)
     return limit
+
+
+def _subtract_calendar_months(value: date, months: int) -> date:
+    """Subtract calendar months while clamping the day to the target month.
+
+    A calendar-month window should preserve the day where possible (for example,
+    September 3 minus twelve months is September 3 of the prior year), but a
+    date such as February 29 may not exist in the target month/year.  In that
+    case use the final valid day of the target month.
+    """
+
+    month_index = value.year * 12 + value.month - 1 - months
+    target_year, target_month_index = divmod(month_index, 12)
+    target_month = target_month_index + 1
+    if target_year < date.min.year or target_year > date.max.year:
+        raise InvalidInputError("--months value is outside the supported date range")
+    target_day = min(value.day, calendar.monthrange(target_year, target_month)[1])
+    return date(target_year, target_month, target_day)
+
+
+def _analysis_window(
+    *,
+    months: int | None,
+    all_history: bool,
+    year: int | None,
+    date_from: str | None,
+    date_to: str | None,
+) -> tuple[date | None, date | None]:
+    """Resolve analysis window options into inclusive date boundaries."""
+
+    has_range = date_from is not None or date_to is not None
+    if months is not None and all_history:
+        raise InvalidInputError("--months cannot be combined with --all")
+    if months is not None and year is not None:
+        raise InvalidInputError("--months cannot be combined with --year")
+    if months is not None and has_range:
+        raise InvalidInputError("--months cannot be combined with --from or --to")
+    if all_history and year is not None:
+        raise InvalidInputError("--all cannot be combined with --year")
+    if all_history and has_range:
+        raise InvalidInputError("--all cannot be combined with --from or --to")
+    if year is not None and has_range:
+        raise InvalidInputError("--year cannot be combined with --from or --to")
+
+    today = datetime.now(UTC).date()
+    if all_history:
+        return None, None
+    if year is not None:
+        return date(year, 1, 1), date(year, 12, 31)
+    if months is not None or not has_range:
+        count = 12 if months is None else months
+        return _subtract_calendar_months(today, count), today
+
+    try:
+        parsed_from = date.fromisoformat(date_from) if date_from else None
+        parsed_to = date.fromisoformat(date_to) if date_to else None
+    except ValueError as exc:
+        raise InvalidInputError("dates must use YYYY-MM-DD format") from exc
+    if parsed_from is not None and parsed_to is not None and parsed_from > parsed_to:
+        raise InvalidInputError("from cannot be later than to")
+    return parsed_from, parsed_to if parsed_to is not None else today
+
+
+@channel_app.command("analyze")
+def channel_analyze(
+    channel_ref: str = typer.Argument(..., help="Channel ID, @handle, or channel URL."),
+    months: int | None = typer.Option(
+        None, "--months", min=1, help="Analyze this many calendar months ending today."
+    ),
+    all_history: bool = typer.Option(
+        False, "--all", help="Analyze the complete upload history."
+    ),
+    year: int | None = typer.Option(
+        None, "--year", min=1970, max=9999, help="Analyze one calendar year."
+    ),
+    date_from: str | None = typer.Option(None, "--from", metavar="YYYY-MM-DD"),
+    date_to: str | None = typer.Option(None, "--to", metavar="YYYY-MM-DD"),
+    match_text: str | None = typer.Option(
+        None, "--match", help="Case-insensitive title substring."
+    ),
+    limit: int = typer.Option(10, "--limit", min=1, help="Maximum breakout videos."),
+    output_format: _AnalysisOutputFormat | None = typer.Option(
+        None, "--format", help="Output format."
+    ),
+    output: Path | None = typer.Option(
+        None, "--output", dir_okay=False, help="Write output to this file."
+    ),
+    refresh: bool = typer.Option(False, "--refresh", help="Bypass cached channel identity."),
+    no_color: bool = typer.Option(False, "--no-color", help="Disable terminal color."),
+) -> None:
+    """Summarize a channel's upload history and highlight breakout videos."""
+
+    def research_analysis() -> Any:
+        parsed_from, parsed_to = _analysis_window(
+            months=months,
+            all_history=all_history,
+            year=year,
+            date_from=date_from,
+            date_to=date_to,
+        )
+        query = AnalysisQuery.model_validate(
+            {
+                "match_text": match_text,
+                "date_from": parsed_from,
+                "date_to": parsed_to,
+                "limit": limit,
+            }
+        )
+        return _with_research(
+            lambda research: research.analyze(channel_ref, query, refresh=refresh)
+        )
+
+    report = _run(research_analysis)
+    selected_format = OutputFormat(output_format.value) if output_format is not None else None
+    _emit(report, output_format=selected_format, output=output, no_color=no_color)
 
 
 @videos_app.command("list")

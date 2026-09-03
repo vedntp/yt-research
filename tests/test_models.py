@@ -5,7 +5,29 @@ from datetime import date
 import pytest
 from pydantic import ValidationError
 
-from yt_research.models import SortOrder, VideoQuery
+from yt_research.models import AnalysisQuery, SortOrder, VideoQuery
+
+
+def test_analysis_query_accepts_public_aliases_and_defaults_limit() -> None:
+    query = AnalysisQuery.model_validate(
+        {"match": "TUTORIAL", "from": "2025-01-01", "to": "2025-12-31"}
+    )
+
+    assert query.match_text == "TUTORIAL"
+    assert query.date_from == date(2025, 1, 1)
+    assert query.date_to == date(2025, 12, 31)
+    assert query.limit == 10
+
+
+def test_analysis_query_rejects_reversed_dates() -> None:
+    with pytest.raises(ValidationError):
+        AnalysisQuery.model_validate({"from": "2025-12-31", "to": "2025-01-01"})
+
+
+@pytest.mark.parametrize("limit", [0, -1])
+def test_analysis_query_requires_positive_limit(limit: int) -> None:
+    with pytest.raises(ValidationError):
+        AnalysisQuery(limit=limit)
 
 
 def test_video_query_accepts_public_aliases() -> None:
