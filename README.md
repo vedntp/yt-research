@@ -57,28 +57,36 @@ yt-research auth status
 
 ### 3 · Research
 
-Replace the placeholder with a public channel handle:
+Replace `@examplecreator` with an exact channel handle, channel ID, or YouTube
+channel URL. These common commands work without any flags:
 
 ```console
-# See the newest uploads
-yt-research videos latest @examplecreator --limit 10
+# Show public channel metadata
+yt-research channel info @examplecreator
 
-# Find the most-viewed videos published in 2026
-yt-research videos top @examplecreator --year 2026
+# See the newest 20 uploads
+yt-research videos latest @examplecreator
 
-# Search titles and save the results
-yt-research videos list @examplecreator --match "tutorial" --format csv --output videos.csv
+# Find the 10 most-viewed uploads
+yt-research videos top @examplecreator
 
-# Summarize the latest 12 calendar months and find breakout uploads
-yt-research channel analyze @examplecreator --limit 10
+# List the newest 10 uploads
+yt-research videos list @examplecreator
+
+# Summarize the latest 12 months and surface 10 breakout uploads
+yt-research channel analyze @examplecreator
 ```
 
-Terminal output defaults to a readable table. Redirected output automatically
-switches to JSON, while diagnostics stay on stderr:
+Terminal output defaults to a readable table. Redirected output switches to
+JSON, while diagnostics stay on stderr:
 
 ```console
 yt-research videos list @examplecreator > videos.json
 ```
+
+Use flags only to refine the question: `--year 2026`, `--match "tutorial"`,
+`--limit 50`, `--format csv`, or `--output results.json`. Run any command with
+`--help` to see its complete set of options.
 
 > [!TIP]
 > Need an API key? Follow the step-by-step [API key setup guide](https://github.com/vedntp/yt-research/blob/main/docs/api-key-setup.md).
@@ -111,26 +119,38 @@ uv run yt-research --help
 
 </details>
 
-## 🧭 Commands at a glance
+## 🧭 Commands and defaults
 
-| | Command | What it does |
+| | Command | Default result |
 | :---: | :--- | :--- |
-| 🔎 | `yt-research channel info CHANNEL` | Show public metadata for one channel |
-| 🧭 | `yt-research channel search QUERY` | Return candidates for a channel name |
-| ⚡ | `yt-research videos latest CHANNEL` | Show the newest matching uploads |
-| 📈 | `yt-research videos top CHANNEL` | Show the most-viewed matching uploads |
-| ⏪ | `yt-research videos first CHANNEL` | Find the oldest matching upload |
-| 🗂️ | `yt-research videos list CHANNEL` | List and filter a channel's uploads |
-| 📊 | `yt-research channel analyze CHANNEL` | Summarize cohorts and surface breakout uploads |
+| 🔎 | `yt-research channel info CHANNEL` | Public metadata for one channel |
+| 🧭 | `yt-research channel search QUERY` | Up to 10 candidates for an ambiguous name |
+| ⚡ | `yt-research videos latest CHANNEL` | Newest 20 uploads |
+| 📈 | `yt-research videos top CHANNEL` | 10 most-viewed uploads across the history |
+| ⏪ | `yt-research videos first CHANNEL` | Oldest upload |
+| 🗂️ | `yt-research videos list CHANNEL` | Newest 10 uploads |
+| 📊 | `yt-research channel analyze CHANNEL` | Last 12 months, with 10 breakout uploads |
 
-Video commands support `--match`, `--year`, `--from`, `--to`, `--sort`, `--limit`,
-`--format`, and `--output`. Run any command with `--help` or see the full
-[command reference](https://github.com/vedntp/yt-research/blob/main/docs/commands.md).
+Channel-specific research commands accept an exact channel handle, channel ID,
+or supported YouTube channel URL. Plain names are intentionally not guessed:
+use `channel search`, then pass the handle or ID you select.
 
-`channel analyze` defaults to the latest 12 calendar months. Use `--months N`,
-`--year YYYY`, `--from`/`--to`, or `--all` to choose a different window. Its
-aggregate summary always includes every matching upload in that window;
-`--limit` only limits the breakout-video table.
+### Refine a result when needed
+
+- `--match TEXT` limits videos to a case-insensitive title match.
+- `--year YYYY`, `--from YYYY-MM-DD`, and `--to YYYY-MM-DD` select a UTC
+  publication window.
+- `--limit N` changes how many video rows are returned.
+- `--format table|json|csv` selects the output format; analysis supports table
+  and JSON because its report contains several sections.
+- `--output PATH` writes the result to a file instead of stdout.
+
+For `channel analyze`, use `--months N`, `--year YYYY`, `--from`/`--to`, or
+`--all` to change the 12-month default window. Its aggregate summary always
+uses every matching upload in that window; `--limit` changes only the
+breakout-video rows. See the full
+[command reference](https://github.com/vedntp/yt-research/blob/main/docs/commands.md)
+for every option and exit code.
 
 ### Research recipes
 
@@ -160,7 +180,7 @@ yt-research videos top @examplecreator --year 2026 --limit 25
 <summary><strong>📊 Understand a channel's recent performance</strong></summary>
 
 ```console
-yt-research channel analyze @examplecreator --months 12 --match "tutorial"
+yt-research channel analyze @examplecreator --match "tutorial"
 ```
 
 The report includes total and median performance, engagement rates, upload

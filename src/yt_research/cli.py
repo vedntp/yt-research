@@ -15,6 +15,7 @@ from typing import Any
 
 import typer
 from pydantic import ValidationError
+from typer._click.core import Command, Context
 
 from . import __version__
 from .cache import ChannelCache
@@ -31,9 +32,29 @@ from .rendering import OutputFormat, as_data, render, write_rendered
 from .research import Research
 from .youtube import YouTubeClient
 
+
+def _is_channel_reference(value: str) -> bool:
+    """Return whether a root argument can safely identify one channel."""
+
+    return value.startswith(("@", "UC", "http://", "https://"))
+
+
+class _ChannelDefaultGroup(typer.core.TyperGroup):
+    """Treat an unambiguous root channel reference as ``channel analyze``."""
+
+    def resolve_command(
+        self, ctx: Context, args: list[str]
+    ) -> tuple[str | None, Command | None, list[str]]:
+        if args and _is_channel_reference(args[0]):
+            args = ["channel", "analyze", *args]
+        return super().resolve_command(ctx, args)
+
+
 app = typer.Typer(
     name="yt-research",
+    cls=_ChannelDefaultGroup,
     help="Research public YouTube channels and upload histories.",
+    epilog="Pass a channel ID, @handle, or channel URL directly for a 12-month summary.",
     no_args_is_help=True,
     pretty_exceptions_show_locals=False,
 )
@@ -382,13 +403,13 @@ def videos_list(
     date_from: str | None = typer.Option(None, "--from", metavar="YYYY-MM-DD"),
     date_to: str | None = typer.Option(None, "--to", metavar="YYYY-MM-DD"),
     sort: SortOrder = typer.Option(SortOrder.PUBLISHED_DESC, "--sort"),
-    limit: int | None = typer.Option(None, "--limit", min=1),
+    limit: int = typer.Option(10, "--limit", min=1),
     output_format: OutputFormat | None = typer.Option(None, "--format"),
     output: Path | None = typer.Option(None, "--output", dir_okay=False),
     refresh: bool = typer.Option(False, "--refresh"),
     no_color: bool = typer.Option(False, "--no-color"),
 ) -> None:
-    """List all videos matching the supplied filters."""
+    """List the newest matching videos."""
 
     _video_report(
         "videos.list",
@@ -398,7 +419,7 @@ def videos_list(
         date_from=date_from,
         date_to=date_to,
         sort=sort,
-        limit=_validate_limit(limit),
+        limit=limit,
         output_format=output_format,
         output=output,
         refresh=refresh,

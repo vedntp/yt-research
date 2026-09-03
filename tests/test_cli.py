@@ -126,6 +126,29 @@ def test_channel_info_json_and_refresh(fake_research: FakeResearch) -> None:
     assert data["query"]["refresh"] is True
 
 
+@pytest.mark.parametrize(
+    "channel_ref",
+    [
+        "UC000000000000000000001",
+        "@exampleobservatory",
+        "https://www.youtube.com/@exampleobservatory",
+    ],
+)
+def test_root_channel_reference_runs_default_analysis(
+    fake_research: FakeResearch, channel_ref: str
+) -> None:
+    result = runner.invoke(cli.app, [channel_ref, "--format", "json"])
+
+    data = payload(result)
+    reference, query, refresh = fake_research.analysis_calls[-1]
+    assert data["command"] == "channel.analyze"
+    assert reference == channel_ref
+    assert query.date_from is not None
+    assert query.date_to is not None
+    assert query.limit == 10
+    assert refresh is False
+
+
 def test_channel_search_returns_candidates_not_a_selected_channel(
     fake_research: FakeResearch,
 ) -> None:
@@ -372,6 +395,19 @@ def test_video_convenience_commands_accept_sort_and_limit_overrides(
     _, query, _, _ = fake_research.video_calls[-1]
     assert query.sort.value == "likes"
     assert query.limit == 2
+
+
+def test_video_list_defaults_to_ten_newest_uploads(fake_research: FakeResearch) -> None:
+    result = runner.invoke(
+        cli.app,
+        ["videos", "list", "@exampleobservatory", "--format", "json"],
+    )
+
+    payload(result)
+    _, query, report_command, _ = fake_research.video_calls[-1]
+    assert query.sort.value == "published-desc"
+    assert query.limit == 10
+    assert report_command == "videos.list"
 
 
 def test_video_list_passes_filters_and_refresh(fake_research: FakeResearch) -> None:

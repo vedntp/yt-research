@@ -43,7 +43,7 @@ published in the same year.
 
 ## Videos
 
-- `videos list CHANNEL` lists all matching uploads, newest first by default.
+- `videos list CHANNEL` returns the newest 10 matching uploads by default.
 - `videos latest CHANNEL` returns the newest matching uploads, 20 by default.
 - `videos top CHANNEL` returns the most-viewed matching uploads, 10 by default.
 - `videos first CHANNEL` returns the oldest matching upload.
@@ -53,7 +53,8 @@ Video commands accept:
 - `--match TEXT` for case-insensitive title substring matching.
 - `--year YYYY`, or the mutually exclusive `--from YYYY-MM-DD` and `--to YYYY-MM-DD` UTC boundaries.
 - `--sort published-asc|published-desc|views|likes`.
-- `--limit N`.
+- `--limit N` (10 for `videos list`, 20 for `videos latest`, 10 for `videos top`,
+  and 1 for `videos first`).
 - `--format table|json|csv`.
 - `--output PATH` to write the result to a file.
 - `--refresh` to bypass cached channel identity data.
@@ -61,7 +62,7 @@ Video commands accept:
 
 ## Quota use
 
-Video commands read the uploads playlist newest first and only request full metadata for uploads that pass `--match`, `--year`, `--from`, and `--to`. Traversal stops early once older uploads can no longer enter the result set, which covers date-bounded queries and newest-first queries with `--limit`. Ranking by `views` or `likes`, and listing without a limit, still read the whole history. `meta.scanned_all` records which happened.
+Video commands read the uploads playlist newest first and only request full metadata for uploads that pass `--match`, `--year`, `--from`, and `--to`. Traversal stops early once older uploads can no longer enter the result set, which covers date-bounded queries and newest-first queries with `--limit`. Ranking by `views` or `likes` still reads the whole history. `meta.scanned_all` records which happened.
 
 Analysis uses the same newest-first traversal and filtering optimization. It
 must inspect every matching upload in the selected window to calculate complete

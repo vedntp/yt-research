@@ -76,6 +76,8 @@ def _display(value: Any) -> str:
         return "-"
     if isinstance(value, bool):
         return "yes" if value else "no"
+    if isinstance(value, (int, float)):
+        return _number(value)
     return str(value)
 
 

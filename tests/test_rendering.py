@@ -123,6 +123,27 @@ def test_plain_table_contains_video_values_without_color(
     assert "\x1b[" not in output
 
 
+def test_table_formats_large_count_values_with_grouping_separators(
+    synthetic_channel: Channel, synthetic_videos: list[Video]
+) -> None:
+    videos = [synthetic_videos[0].model_copy(update={"views": 1_234_567, "likes": 12_345})]
+    video_table = render(make_report(synthetic_channel, videos), OutputFormat.table, no_color=True)
+    channel_table = render(
+        {
+            "channel": synthetic_channel.model_copy(
+                update={"subscribers": 21_200_000, "views": 556_234_269}
+            )
+        },
+        OutputFormat.table,
+        no_color=True,
+    )
+
+    assert "1,234,567" in video_table
+    assert "12,345" in video_table
+    assert "21,200,000" in channel_table
+    assert "556,234,269" in channel_table
+
+
 def test_render_json_ends_with_single_newline(
     synthetic_channel: Channel, synthetic_videos: list[Video]
 ) -> None:

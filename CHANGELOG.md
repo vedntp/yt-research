@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is based on 
 
 ## [Unreleased]
 
+### Added
+
+- A channel ID, handle, or YouTube channel URL passed directly to `yt-research`
+  now runs the default 12-month channel analysis, without requiring subcommands
+  or flags.
+
+### Changed
+
+- `videos list CHANNEL` now returns the newest 10 matching uploads by default,
+  avoiding a full-history request unless a larger `--limit` is requested.
+
 ## [0.2.0] - 2026-09-03
 
 ### Changed
