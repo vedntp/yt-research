@@ -79,6 +79,30 @@ class VideoQuery(BaseModel):
         return self
 
 
+class AnalysisQuery(BaseModel):
+    """Filters and presentation options for a channel analysis report.
+
+    The command layer resolves relative windows (for example ``--months 12``)
+    into inclusive UTC calendar dates before constructing this model.  Leaving
+    both dates unset represents an unbounded history query, which is useful for
+    callers of :meth:`yt_research.research.Research.analyze` and for the
+    command's ``--all`` option.
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    match_text: str | None = Field(default=None, alias="match")
+    date_from: date | None = Field(default=None, alias="from")
+    date_to: date | None = Field(default=None, alias="to")
+    limit: int = Field(default=10, ge=1)
+
+    @model_validator(mode="after")
+    def validate_dates(self) -> AnalysisQuery:
+        if self.date_from and self.date_to and self.date_from > self.date_to:
+            raise ValueError("from cannot be later than to")
+        return self
+
+
 class ReportMeta(BaseModel):
     matched: int = 0
     returned: int = 0
@@ -105,4 +129,65 @@ class VideoReport(BaseModel):
     channel: Channel
     query: VideoQuery
     items: list[Video] = Field(default_factory=list)
+    meta: ReportMeta = Field(default_factory=ReportMeta)
+
+
+class AnalysisCoverage(BaseModel):
+    """Number of analyzed videos carrying each metric."""
+
+    views: int = 0
+    likes: int = 0
+    comments: int = 0
+    duration: int = 0
+    like_rate: int = 0
+    comment_rate: int = 0
+
+
+class AnalysisSummary(BaseModel):
+    """Aggregate current metrics for all videos matching an analysis query."""
+
+    video_count: int = 0
+    published_from: date | None = None
+    published_to: date | None = None
+    total_views: int = 0
+    median_views: float | None = None
+    median_likes: float | None = None
+    median_comments: float | None = None
+    median_duration_seconds: float | None = None
+    like_rate: float | None = None
+    comment_rate: float | None = None
+    uploads_per_month: float | None = None
+    median_days_between_uploads: float | None = None
+    coverage: AnalysisCoverage = Field(default_factory=AnalysisCoverage)
+
+
+class MonthlyCohort(BaseModel):
+    """Current performance grouped by the month in which videos were published."""
+
+    month: str
+    video_count: int = 0
+    total_views: int = 0
+    median_views: float | None = None
+    like_rate: float | None = None
+    comment_rate: float | None = None
+    median_duration_seconds: float | None = None
+
+
+class BreakoutVideo(Video):
+    """A video whose current views are high relative to its publication year."""
+
+    year_median_views: float
+    year_cohort_size: int
+    view_multiplier: float
+
+
+class AnalysisReport(BaseModel):
+    schema_version: int = 1
+    command: str = "channel.analyze"
+    fetched_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    channel: Channel
+    query: AnalysisQuery
+    summary: AnalysisSummary
+    monthly_cohorts: list[MonthlyCohort] = Field(default_factory=list)
+    items: list[BreakoutVideo] = Field(default_factory=list)
     meta: ReportMeta = Field(default_factory=ReportMeta)

@@ -11,6 +11,7 @@ All notable changes to this project are documented here. The format is based on 
 ### Added
 
 - `meta.scanned_all` reports whether a report read the channel's whole upload history.
+- Added `yt-research channel analyze` for 12-month, custom-window, or full-history channel summaries, publication-month cohorts, and year-normalized breakout videos. Analysis JSON retains the common versioned envelope, and its table output clearly distinguishes current snapshots from historical growth.
 
 ## [0.1.1] - 2026-09-03
 

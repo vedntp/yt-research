@@ -68,6 +68,9 @@ yt-research videos top @examplecreator --year 2026
 
 # Search titles and save the results
 yt-research videos list @examplecreator --match "tutorial" --format csv --output videos.csv
+
+# Summarize the latest 12 calendar months and find breakout uploads
+yt-research channel analyze @examplecreator --limit 10
 ```
 
 Terminal output defaults to a readable table. Redirected output automatically
@@ -118,10 +121,16 @@ uv run yt-research --help
 | 📈 | `yt-research videos top CHANNEL` | Show the most-viewed matching uploads |
 | ⏪ | `yt-research videos first CHANNEL` | Find the oldest matching upload |
 | 🗂️ | `yt-research videos list CHANNEL` | List and filter a channel's uploads |
+| 📊 | `yt-research channel analyze CHANNEL` | Summarize cohorts and surface breakout uploads |
 
 Video commands support `--match`, `--year`, `--from`, `--to`, `--sort`, `--limit`,
 `--format`, and `--output`. Run any command with `--help` or see the full
 [command reference](https://github.com/vedntp/yt-research/blob/main/docs/commands.md).
+
+`channel analyze` defaults to the latest 12 calendar months. Use `--months N`,
+`--year YYYY`, `--from`/`--to`, or `--all` to choose a different window. Its
+aggregate summary always includes every matching upload in that window;
+`--limit` only limits the breakout-video table.
 
 ### Research recipes
 
@@ -144,6 +153,20 @@ yt-research videos top @examplecreator --year 2026 --limit 25
 ```
 
 `videos top` sorts matching uploads by view count and defaults to ten results.
+
+</details>
+
+<details>
+<summary><strong>📊 Understand a channel's recent performance</strong></summary>
+
+```console
+yt-research channel analyze @examplecreator --months 12 --match "tutorial"
+```
+
+The report includes total and median performance, engagement rates, upload
+cadence, publication-month cohorts, and year-normalized breakout videos. Cohort
+metrics are current snapshots grouped by the month a video was published; they
+do not represent historical view growth. Use `--format json` for automation.
 
 </details>
 
@@ -177,7 +200,9 @@ yt-research videos top @examplecreator --limit 50 --format csv --output top-vide
 ```
 
 JSON output includes a schema version, command metadata, the resolved channel,
-the effective query, result items, and request counts. See the
+the effective query, result items, and request counts. Analysis reports add
+typed summary and publication-cohort sections while retaining the same envelope.
+See the
 [JSON output contract](https://github.com/vedntp/yt-research/blob/main/docs/json-contract.md) for the stable shape.
 
 ## 📚 Documentation
@@ -195,7 +220,9 @@ the effective query, result items, and request counts. See the
 `yt-research` does not use OAuth or access private account data. It does not
 download videos, retrieve transcripts or comments, classify Shorts, or run as a
 hosted service. API calls consume quota from the Google Cloud project associated
-with your key.
+with your key. Analysis reports may traverse every upload in the selected
+window because aggregate metrics must not be truncated; use a bounded date
+window and title match to keep quota use focused.
 
 ## Contributing
 
