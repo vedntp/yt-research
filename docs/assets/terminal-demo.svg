@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-labelledby="title description">
+  <title id="title">yt-research terminal output</title>
+  <desc id="description">A terminal runs yt-research videos top for a fictional channel and displays two videos in a formatted table.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d1117"/>
+      <stop offset="1" stop-color="#121a2a"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff4d5f"/>
+      <stop offset="1" stop-color="#4cc9f0"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-20%" width="120%" height="150%">
+      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="420" rx="22" fill="#070b12"/>
+  <rect x="18" y="18" width="1244" height="384" rx="15" fill="url(#background)" stroke="#30363d" filter="url(#shadow)"/>
+  <rect x="18" y="18" width="1244" height="54" rx="15" fill="#161b22"/>
+  <path d="M18 57h1244v15H18z" fill="#161b22"/>
+  <path d="M18 72h1244" stroke="#30363d"/>
+  <circle cx="50" cy="45" r="7" fill="#ff5f57"/>
+  <circle cx="74" cy="45" r="7" fill="#febc2e"/>
+  <circle cx="98" cy="45" r="7" fill="#28c840"/>
+  <text x="640" y="50" fill="#8b949e" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14">yt-research — 120×24</text>
+
+  <rect x="45" y="96" width="6" height="24" rx="3" fill="url(#accent)"/>
+  <text x="70" y="115" fill="#7ee787" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="700">$</text>
+  <text x="92" y="115" fill="#e6edf3" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18">yt-research videos top @exampleobservatory --limit 5</text>
+
+  <rect x="46" y="149" width="1188" height="252" rx="10" fill="#0d1117" stroke="#30363d"/>
+  <rect x="46" y="149" width="1188" height="50" rx="10" fill="#161b22"/>
+  <path d="M46 189h1188v10H46z" fill="#161b22"/>
+  <path d="M46 199h1188M46 295h1188" stroke="#30363d"/>
+  <path d="M270 149v252M670 149v252M804 149v252M916 149v252" stroke="#21262d"/>
+
+  <g fill="#79c0ff" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="700">
+    <text x="68" y="180">Published</text>
+    <text x="292" y="180">Title</text>
+    <text x="692" y="180">Views</text>
+    <text x="826" y="180">Likes</text>
+    <text x="938" y="180">URL</text>
+  </g>
+
+  <g fill="#c9d1d9" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15">
+    <text x="68" y="238">2026-02-03T11:00:00Z</text>
+    <text x="292" y="238" fill="#f0f6fc">Synthetic Tutorial</text>
+    <text x="692" y="238">250</text>
+    <text x="826" y="238" fill="#8b949e">-</text>
+    <text x="938" y="238" fill="#a5d6ff">youtube.com/watch?v=video-b</text>
+
+    <text x="68" y="334">2025-01-02T10:00:00Z</text>
+    <text x="292" y="334" fill="#f0f6fc">Café &amp; Telescope</text>
+    <text x="692" y="334">100</text>
+    <text x="826" y="334">10</text>
+    <text x="938" y="334" fill="#a5d6ff">youtube.com/watch?v=video-a</text>
+  </g>
+
+</svg>
