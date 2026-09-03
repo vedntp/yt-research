@@ -326,9 +326,7 @@ def channel_analyze(
     months: int | None = typer.Option(
         None, "--months", min=1, help="Analyze this many calendar months ending today."
     ),
-    all_history: bool = typer.Option(
-        False, "--all", help="Analyze the complete upload history."
-    ),
+    all_history: bool = typer.Option(False, "--all", help="Analyze the complete upload history."),
     year: int | None = typer.Option(
         None, "--year", min=1970, max=9999, help="Analyze one calendar year."
     ),
