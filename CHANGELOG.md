@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format is based on 
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-03
+
+### Changed
+
+- Redesigned the project and package landing page with clearer onboarding, research recipes, and accessible visual examples.
+
 ## [0.1.0] - 2026-07-31
 
 ### Added
@@ -14,5 +20,6 @@ All notable changes to this project are documented here. The format is based on 
 - Native secret-store support and an environment variable for headless use.
 - Synthetic test suite and macOS and Linux continuous integration.
 
-[Unreleased]: https://github.com/vedntp/yt-research/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/vedntp/yt-research/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/vedntp/yt-research/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/vedntp/yt-research/releases/tag/v0.1.0

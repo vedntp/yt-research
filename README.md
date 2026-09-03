@@ -15,7 +15,7 @@ Explore public channel metadata and upload histories, then export clean data for
 </div>
 
 > [!IMPORTANT]
-> `yt-research` is under active development. Version 0.1.0 is the first public interface and may evolve before 1.0.
+> `yt-research` is under active development. The 0.1.x interface may evolve before 1.0.
 
 ---
 
@@ -192,10 +192,10 @@ the effective query, result items, and request counts. See the
 
 ## Scope and privacy
 
-`yt-research` does not use OAuth or access private account data. Version 0.1.0
-does not download videos, retrieve transcripts or comments, classify Shorts, or
-run as a hosted service. API calls consume quota from the Google Cloud project
-associated with your key.
+`yt-research` does not use OAuth or access private account data. It does not
+download videos, retrieve transcripts or comments, classify Shorts, or run as a
+hosted service. API calls consume quota from the Google Cloud project associated
+with your key.
 
 ## Contributing
 
