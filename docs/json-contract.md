@@ -14,10 +14,14 @@ JSON output is intended for scripts and agents. Version 0.1.0 emits `schema_vers
     "matched": 0,
     "returned": 0,
     "requests": {},
-    "warnings": []
+    "warnings": [],
+    "truncated": false,
+    "scanned_all": true
   }
 }
 ```
+
+`scanned_all` reports whether the whole upload history was read. When it is `false`, traversal stopped once the remaining uploads could no longer enter the result set, and `matched` is a lower bound rather than a catalog-wide total.
 
 Consumers may ignore unknown object properties. A future incompatible change will increment `schema_version`. Optional API statistics, such as likes or comments, are `null` when unavailable. An absent optional statistic does not remove the video from `items`.
 

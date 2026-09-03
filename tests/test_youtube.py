@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 
 import httpx
 import pytest
@@ -95,19 +96,39 @@ def test_upload_iterator_traverses_every_page() -> None:
             httpx.Response(
                 200,
                 json={
-                    "items": [{"contentDetails": {"videoId": "video-1"}}],
+                    "items": [
+                        {
+                            "snippet": {"title": "Lesson &amp; Sample 1"},
+                            "contentDetails": {
+                                "videoId": "video-1",
+                                "videoPublishedAt": "2026-01-02T00:00:00Z",
+                            },
+                        }
+                    ],
                     "nextPageToken": "next-page",
                 },
             ),
-            httpx.Response(200, json={"items": [{"contentDetails": {"videoId": "video-2"}}]}),
+            httpx.Response(
+                200,
+                json={
+                    "items": [
+                        {
+                            "snippet": {"title": "Private video"},
+                            "contentDetails": {"videoId": "video-2"},
+                        }
+                    ]
+                },
+            ),
         ]
     )
     client = YouTubeClient("synthetic-secret")
 
-    assert list(client.iter_upload_video_ids("UU000000000000000000001")) == [
-        "video-1",
-        "video-2",
-    ]
+    uploads = list(client.iter_uploads("UU000000000000000000001"))
+
+    assert [upload.video_id for upload in uploads] == ["video-1", "video-2"]
+    assert uploads[0].title == "Lesson & Sample 1"
+    assert uploads[0].published_at == datetime(2026, 1, 2, tzinfo=UTC)
+    assert uploads[1].published_at is None
     assert len(route.calls) == 2
     assert "pageToken" not in route.calls[0].request.url.params
     assert route.calls[1].request.url.params["pageToken"] == "next-page"

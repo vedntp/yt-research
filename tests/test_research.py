@@ -2,11 +2,18 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from yt_research.cache import ChannelCache
-from yt_research.models import Channel, ChannelCandidate, SortOrder, Video, VideoQuery
+from yt_research.models import (
+    Channel,
+    ChannelCandidate,
+    SortOrder,
+    UploadItem,
+    Video,
+    VideoQuery,
+)
 from yt_research.research import Research
 
 
@@ -17,6 +24,7 @@ class FakeYouTubeAPI:
         self.resolved: list[str] = []
         self.requested_playlists: list[str] = []
         self.requested_batches: list[list[str]] = []
+        self.scanned: list[str] = []
         self._requests: Counter[str] = Counter()
 
     @property
@@ -39,15 +47,24 @@ class FakeYouTubeAPI:
             )
         ][:limit]
 
-    def iter_upload_video_ids(self, playlist_id: str) -> Iterator[str]:
+    def iter_uploads(self, playlist_id: str) -> Iterator[UploadItem]:
         self.requested_playlists.append(playlist_id)
-        self._requests["playlistItems"] += 1
-        yield from (video.video_id for video in self.video_values)
+        newest_first = sorted(self.video_values, key=lambda item: item.published_at, reverse=True)
+        for index, video in enumerate(newest_first):
+            if index % 50 == 0:
+                self._requests["playlistItems"] += 1
+            self.scanned.append(video.video_id)
+            yield UploadItem(
+                video_id=video.video_id,
+                title=video.title,
+                published_at=video.published_at,
+            )
 
     def get_videos(self, video_ids: list[str]) -> list[Video]:
         self.requested_batches.append(video_ids)
         self._requests["videos"] += 1
-        return self.video_values
+        requested = set(video_ids)
+        return [video for video in self.video_values if video.video_id in requested]
 
 
 def test_channel_report_includes_request_delta(synthetic_channel: Channel) -> None:
@@ -151,15 +168,75 @@ def test_all_sort_orders_and_limit(synthetic_channel: Channel) -> None:
     assert [video.video_id for video in liked.items] == ["video-2", "video-3", "video-1"]
 
 
+def catalog(count: int) -> list[Video]:
+    return [
+        Video(
+            video_id=f"video-{index:04d}",
+            title=f"Episode {index}",
+            url=f"https://www.youtube.com/watch?v=video-{index:04d}",
+            published_at=datetime(2026, 1, 1, tzinfo=UTC) - timedelta(days=index),
+            views=index,
+        )
+        for index in range(count)
+    ]
+
+
+def test_playlist_metadata_filters_uploads_before_they_are_hydrated(
+    synthetic_channel: Channel,
+) -> None:
+    videos = catalog(400)
+    api = FakeYouTubeAPI(synthetic_channel, videos)
+
+    report = Research(api).videos(synthetic_channel.channel_id, VideoQuery(year=2026))
+
+    assert [video.video_id for video in report.items] == ["video-0000"]
+    assert api.requested_batches == [["video-0000"]]
+    assert report.meta.scanned_all is False
+    assert len(api.scanned) == 101
+
+
+def test_newest_first_limit_stops_scanning_after_the_out_of_order_window(
+    synthetic_channel: Channel,
+) -> None:
+    api = FakeYouTubeAPI(synthetic_channel, catalog(400))
+
+    report = Research(api).videos(synthetic_channel.channel_id, VideoQuery(limit=5))
+
+    assert [video.video_id for video in report.items] == [
+        f"video-{index:04d}" for index in range(5)
+    ]
+    assert len(api.scanned) == 105
+    assert report.meta.scanned_all is False
+    assert report.meta.requests["playlistItems"] == 3
+
+
+def test_view_ranking_and_unbounded_listing_still_scan_the_whole_catalog(
+    synthetic_channel: Channel,
+) -> None:
+    api = FakeYouTubeAPI(synthetic_channel, catalog(120))
+
+    report = Research(api).videos(
+        synthetic_channel.channel_id,
+        VideoQuery(sort=SortOrder.VIEWS, limit=5),
+        command="videos.top",
+    )
+
+    assert len(api.scanned) == 120
+    assert report.meta.scanned_all is True
+    assert report.meta.matched == 120
+
+
 def test_missing_statistics_and_unavailable_uploads_generate_warnings(
     synthetic_channel: Channel, synthetic_videos: list[Video]
 ) -> None:
     api = FakeYouTubeAPI(synthetic_channel, synthetic_videos)
+    uploads = api.iter_uploads
 
-    def extra_id(_: str) -> Iterator[str]:
-        yield from ["video-a", "video-b", "unavailable"]
+    def with_unavailable_upload(playlist_id: str) -> Iterator[UploadItem]:
+        yield from uploads(playlist_id)
+        yield UploadItem(video_id="unavailable", title="Private video")
 
-    api.iter_upload_video_ids = extra_id  # type: ignore[assignment]
+    api.iter_uploads = with_unavailable_upload  # type: ignore[assignment]
 
     report = Research(api).videos("@exampleobservatory", VideoQuery())
 

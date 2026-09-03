@@ -31,6 +31,10 @@ Video commands accept:
 - `--refresh` to bypass cached channel identity data.
 - `--no-color` to disable terminal styling.
 
+## Quota use
+
+Video commands read the uploads playlist newest first and only request full metadata for uploads that pass `--match`, `--year`, `--from`, and `--to`. Traversal stops early once older uploads can no longer enter the result set, which covers date-bounded queries and newest-first queries with `--limit`. Ranking by `views` or `likes`, and listing without a limit, still read the whole history. `meta.scanned_all` records which happened.
+
 Plain channel names are intentionally rejected by research commands. Use `channel search`, then pass an exact handle or ID.
 
 ## Exit codes

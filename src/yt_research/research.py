@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from datetime import UTC, datetime
+import heapq
+from collections.abc import Iterator, Mapping
+from dataclasses import dataclass, field
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Protocol
 
 from .cache import ChannelCache
@@ -14,10 +16,16 @@ from .models import (
     ChannelReport,
     ReportMeta,
     SortOrder,
+    UploadItem,
     Video,
     VideoQuery,
     VideoReport,
 )
+
+# Uploads playlists are ordered newest first, but a backdated or republished
+# upload can sit out of order. Keep reading this many consecutive uploads older
+# than the cutoff before trusting that nothing newer remains.
+_ORDER_GRACE = 100
 
 
 class YouTubeAPI(Protocol):
@@ -28,9 +36,34 @@ class YouTubeAPI(Protocol):
 
     def search_channels(self, query: str, limit: int = 10) -> list[ChannelCandidate]: ...
 
-    def iter_upload_video_ids(self, playlist_id: str): ...  # type: ignore[no-untyped-def]
+    def iter_uploads(self, playlist_id: str) -> Iterator[UploadItem]: ...
 
     def get_videos(self, video_ids: list[str]) -> list[Video]: ...
+
+
+@dataclass
+class _UploadScan:
+    """Uploads worth hydrating, plus how much of the playlist was read."""
+
+    video_ids: list[str] = field(default_factory=list)
+    unavailable: int = 0
+    complete: bool = True
+
+
+def _start_of_day(value: date) -> datetime:
+    return datetime.combine(value, time.min, tzinfo=UTC)
+
+
+def _floor(query: VideoQuery) -> datetime | None:
+    if query.year is not None:
+        return _start_of_day(date(query.year, 1, 1))
+    return _start_of_day(query.date_from) if query.date_from else None
+
+
+def _ceiling(query: VideoQuery) -> datetime | None:
+    if query.year is not None:
+        return _start_of_day(date(query.year + 1, 1, 1))
+    return _start_of_day(query.date_to) + timedelta(days=1) if query.date_to else None
 
 
 def _counter_delta(before: Mapping[str, int], after: Mapping[str, int]) -> dict[str, int]:
@@ -82,9 +115,9 @@ class Research:
     ) -> VideoReport:
         before = dict(self.api.request_counts)
         channel = self._resolve_channel(reference, refresh)
-        video_ids = list(self.api.iter_upload_video_ids(channel.uploads_playlist_id))
-        videos = self.api.get_videos(video_ids)
-        warnings = self._warnings(video_ids, videos)
+        scan = self._scan_uploads(channel.uploads_playlist_id, query)
+        videos = self.api.get_videos(scan.video_ids) if scan.video_ids else []
+        warnings = self._warnings(scan, videos)
         matches = self._filter(videos, query)
         matched_count = len(matches)
         ordered = self._sort(matches, query.sort)
@@ -101,8 +134,49 @@ class Research:
                 requests=_counter_delta(before, self.api.request_counts),
                 warnings=warnings,
                 truncated=len(returned) < matched_count,
+                scanned_all=scan.complete,
             ),
         )
+
+    def _scan_uploads(self, playlist_id: str, query: VideoQuery) -> _UploadScan:
+        """Select the uploads that can still reach the result set.
+
+        Playlist metadata already answers the title and date filters, so only
+        surviving uploads cost a `videos` request. When the result set is the
+        newest N uploads, traversal also stops once the playlist runs older than
+        the Nth candidate found so far.
+        """
+
+        needle = query.match_text.casefold() if query.match_text else None
+        floor, ceiling = _floor(query), _ceiling(query)
+        rank_limit = query.limit if query.sort == SortOrder.PUBLISHED_DESC else None
+        newest: list[datetime] = []
+        scan = _UploadScan()
+        stale = 0
+        for upload in self.api.iter_uploads(playlist_id):
+            if upload.published_at is None:
+                scan.unavailable += 1
+                continue
+            published = upload.published_at.astimezone(UTC)
+            ranked = newest[0] if rank_limit is not None and len(newest) == rank_limit else None
+            bounds = [bound for bound in (floor, ranked) if bound is not None]
+            if bounds and published < max(bounds):
+                stale += 1
+                if stale >= _ORDER_GRACE:
+                    scan.complete = False
+                    break
+                continue
+            stale = 0
+            if ceiling is not None and published >= ceiling:
+                continue
+            if needle is not None and needle not in upload.title.casefold():
+                continue
+            scan.video_ids.append(upload.video_id)
+            if rank_limit is not None:
+                heapq.heappush(newest, published)
+                if len(newest) > rank_limit:
+                    heapq.heappop(newest)
+        return scan
 
     @staticmethod
     def _filter(videos: list[Video], query: VideoQuery) -> list[Video]:
@@ -144,9 +218,9 @@ class Research:
         )
 
     @staticmethod
-    def _warnings(requested_ids: list[str], videos: list[Video]) -> list[str]:
+    def _warnings(scan: _UploadScan, videos: list[Video]) -> list[str]:
         warnings: list[str] = []
-        missing = len(requested_ids) - len(videos)
+        missing = len(scan.video_ids) - len(videos) + scan.unavailable
         if missing:
             warnings.append(f"{missing} upload(s) were unavailable or returned incomplete metadata")
         missing_likes = sum(video.likes is None for video in videos)

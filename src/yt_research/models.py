@@ -52,6 +52,14 @@ class Video(BaseModel):
     channel_id: str | None = None
 
 
+class UploadItem(BaseModel):
+    """Cheap upload descriptor available from a playlist page."""
+
+    video_id: str
+    title: str
+    published_at: datetime | None = None
+
+
 class VideoQuery(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -77,6 +85,7 @@ class ReportMeta(BaseModel):
     requests: dict[str, int] = Field(default_factory=dict)
     warnings: list[str] = Field(default_factory=list)
     truncated: bool = False
+    scanned_all: bool = True
 
 
 class ChannelReport(BaseModel):
