@@ -5,12 +5,23 @@ build-backend = "hatchling.build"
 [project]
 name = "yt-research"
 version = "0.1.1"
-description = "Research public YouTube channels from the command line"
+description = "Export and analyze public YouTube channel video histories from the command line"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
 authors = [{ name = "vedant" }]
-keywords = ["youtube", "research", "cli", "data-api"]
+keywords = [
+  "youtube",
+  "youtube-api",
+  "youtube-data-api",
+  "channel-analytics",
+  "research",
+  "cli",
+  "python",
+  "osint",
+  "csv",
+  "data-export",
+]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",

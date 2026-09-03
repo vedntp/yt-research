@@ -4,9 +4,9 @@
 
 # yt-research
 
-### YouTube channel research, straight from your terminal.
+### Export and analyze a YouTube channel's complete public video history from your terminal.
 
-Explore public channel metadata and upload histories, then export clean data for spreadsheets, scripts, and agents.
+Explore channel metadata, find top videos, and export clean CSV or JSON for spreadsheets, scripts, and agents.
 
 [![CI](https://github.com/vedntp/yt-research/actions/workflows/ci.yml/badge.svg)](https://github.com/vedntp/yt-research/actions/workflows/ci.yml) [![PyPI](https://img.shields.io/pypi/v/yt-research?color=blue)](https://pypi.org/project/yt-research/) [![Python](https://img.shields.io/pypi/pyversions/yt-research)](https://pypi.org/project/yt-research/) [![License: MIT](https://img.shields.io/github/license/vedntp/yt-research)](https://github.com/vedntp/yt-research/blob/main/LICENSE)
 
@@ -162,9 +162,9 @@ The output follows a versioned contract and keeps warnings on stderr.
 
 Interactive results are formatted as a styled terminal table:
 
-[![Stylized yt-research terminal preview based on fictional fixture data](https://raw.githubusercontent.com/vedntp/yt-research/main/docs/assets/terminal-demo.svg)](https://raw.githubusercontent.com/vedntp/yt-research/main/docs/assets/terminal-demo.svg)
+[![Animated yt-research terminal demo using illustrative MKBHD data](https://raw.githubusercontent.com/vedntp/yt-research/main/docs/assets/yt-research-demo.gif)](https://raw.githubusercontent.com/vedntp/yt-research/main/docs/assets/yt-research-demo.gif)
 
-<p align="center"><sub>Stylized preview based on fictional test fixture data · <a href="https://raw.githubusercontent.com/vedntp/yt-research/main/docs/assets/terminal-demo.svg">open full size</a></sub></p>
+<p align="center"><sub>Illustrative demo; titles and statistics are not actual MKBHD data · <a href="https://raw.githubusercontent.com/vedntp/yt-research/main/docs/assets/yt-research-demo.gif">open full size</a></sub></p>
 
 The same commands fit cleanly into pipelines and spreadsheet workflows:
 
