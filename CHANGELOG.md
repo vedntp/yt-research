@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on 
 
 ## [Unreleased]
 
+### Changed
+
+- Video commands now filter uploads using playlist metadata and stop traversing once older uploads cannot enter the result set, so date-bounded and newest-first queries cost a fraction of the previous API quota.
+
+### Added
+
+- `meta.scanned_all` reports whether a report read the channel's whole upload history.
+
 ## [0.1.1] - 2026-09-03
 
 ### Changed

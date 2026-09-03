@@ -14,7 +14,7 @@ from urllib.parse import unquote, urlparse
 import httpx
 
 from .errors import CredentialsError, NetworkError, NotFoundError, QuotaError, UpstreamError
-from .models import Channel, ChannelCandidate, Video
+from .models import Channel, ChannelCandidate, UploadItem, Video
 
 _CHANNEL_ID = re.compile(r"^UC[A-Za-z0-9_-]{22}$")
 _HANDLE = re.compile(r"^@[^\s/@?&#]+$")
@@ -213,11 +213,18 @@ class YouTubeClient:
             )
         return candidates
 
-    def iter_upload_video_ids(self, playlist_id: str) -> Iterator[str]:
+    def iter_uploads(self, playlist_id: str) -> Iterator[UploadItem]:
+        """Yield uploads newest first, including the title and publication time.
+
+        Playlist pages carry enough metadata to filter without spending a
+        `videos` request, and the generator only fetches a page when the caller
+        asks for an item beyond the current one.
+        """
+
         page_token: str | None = None
         while True:
             params: dict[str, Any] = {
-                "part": "contentDetails",
+                "part": "snippet,contentDetails",
                 "playlistId": playlist_id,
                 "maxResults": 50,
             }
@@ -225,9 +232,15 @@ class YouTubeClient:
                 params["pageToken"] = page_token
             payload = self._request("playlistItems", params)
             for item in payload.get("items", []):
-                video_id = item.get("contentDetails", {}).get("videoId")
-                if video_id:
-                    yield video_id
+                details = item.get("contentDetails", {})
+                video_id = details.get("videoId")
+                if not video_id:
+                    continue
+                yield UploadItem(
+                    video_id=video_id,
+                    title=html.unescape(item.get("snippet", {}).get("title", "")),
+                    published_at=_parse_datetime(details.get("videoPublishedAt")),
+                )
             page_token = payload.get("nextPageToken")
             if not page_token:
                 break
